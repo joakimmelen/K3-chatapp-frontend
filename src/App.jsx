@@ -8,9 +8,11 @@ let socket;
 
 function App() {
   const [socketId, setSocketId] = useState("");
+  const [user, setUser] = useState("");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState("");
+  const [room, setRoom] = useState("");
 
   useEffect(() => {
     socket = io(server);
@@ -27,25 +29,29 @@ function App() {
       console.log(data);
     });
 
+    socket.on("welcome_to_room", (data) => {
+      console.log(data);
+      setMessages(data);
+    });
+
     socket.on("disconnect", (reason) => {
       console.log("Disconnected from server");
+    });
+
+    socket.on("new_message", (data) => {
+      setMessages([...messages, data]);
+      console.log(data);
     });
 
     return () => socket.off();
     // setMessages(fromDaBase)
   }, []);
 
-  useEffect(() => {
-    socket.on("messages", (data) => {
-      setMessages([...messages, data]);
-    });
-  }, []);
-
   function handleMessage(e) {
     e.preventDefault();
-    if (input) socket.emit("message", input);
+    if (input) socket.emit("message", input, user, room);
+    // setMessages([...messages, input]);
     setInput("");
-    console.log(messages);
   }
 
   function handleDM() {
@@ -53,6 +59,7 @@ function App() {
   }
 
   function joinRoom(roomName) {
+    setRoom(roomName);
     socket.emit("join_room", roomName);
   }
 
@@ -64,14 +71,22 @@ function App() {
     <div className="App">
       <header className="App-header">
         <input
+          placeholder="Username..."
+          className="username"
+          value={user}
+          autoComplete="off"
+          onChange={(e) => setUser(e.target.value)}
+        />
+        {/* <input
           className="socketId"
           value={socketId}
           onChange={(e) => setSocketId(e.target.value)}
         />
-        <button onClick={handleDM}>Skicka direktmeddelande</button>
+        <button onClick={handleDM}>Skicka direktmeddelande</button> */}
         <ul className="messages">
           {messages.map((message) => {
-            return <li key={message.id}>{message}</li>;
+            console.log(message);
+            return <li>{message.message}</li>;
           })}
         </ul>
         <form action="" className="messageForm">
@@ -83,7 +98,12 @@ function App() {
           />
           <button onClick={handleMessage}>Skicka meddelande</button>
         </form>
-        <button onClick={() => joinRoom("piri room")}>Gå med i rum</button>
+        <input
+          placeholder="Roomname..."
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+        />
+        <button onClick={() => joinRoom(room)}>Gå med i rum</button>
         <button onClick={() => leaveRoom("piri room")}>Lämna rum</button>
       </header>
     </div>

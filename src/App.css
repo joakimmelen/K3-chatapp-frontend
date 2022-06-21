@@ -50,7 +50,7 @@ button {
 }
 
 .messages > li:nth-child(odd) {
-  background: #efefef;
+  background: #6e4949;
 }
 
 .messageForm {
