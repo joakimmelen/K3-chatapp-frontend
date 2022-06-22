@@ -15,6 +15,7 @@ function App() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState("");
+  const [rooms, setRooms] = useState([]);
   const [room, setRoom] = useState("");
   const [roomInput, setRoomInput] = useState("");
   const [date, setDate] = useState();
@@ -72,6 +73,9 @@ function App() {
       console.log(data);
     });
 
+    socket.on("error_remove_room", (data) => {
+      console.log(data);
+    });
     socket.on("welcome_to_room", (data) => {
       // setMessages((prevState) => [...prevState, data]);
       setMessages(data[0]);
@@ -94,6 +98,12 @@ function App() {
   useEffect(() => {
     setDate(getTime());
   }, [messages]);
+
+  useEffect(() => {
+    socket.on("all_rooms", (data) => {
+      console.log(data);
+    });
+  }, [rooms]);
 
   function handleMessage() {
     const newMessage = {
@@ -144,6 +154,14 @@ function App() {
     setRoom("");
   }
 
+  function getRooms() {
+    socket.emit("get_rooms");
+  }
+
+  function removeRoom(roomName) {
+    socket.emit("remove_room", roomName);
+  }
+
   if (!user && !init) {
     return (
       <div className="App">
@@ -160,6 +178,10 @@ function App() {
       <div className="App">
         <header className="App-header">
           <input
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") loginUser();
+            }}
             placeholder="Username..."
             className="username"
             value={username}
@@ -176,6 +198,10 @@ function App() {
       <div className="App">
         <header className="App-header">
           <input
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addUser();
+            }}
             placeholder="Username..."
             className="username"
             value={username}
@@ -191,13 +217,35 @@ function App() {
     return (
       <div className="App">
         <header className="App-header">
-          <input
-            placeholder="Roomname..."
-            value={roomInput}
-            onChange={(e) => setRoomInput(e.target.value)}
-          />
-          <button onClick={() => joinRoom(roomInput)}>Join room</button>
-          <button onClick={() => createRoom(roomInput)}>Create room</button>
+          <div className="headerboii">
+            <h4 className="currentUser">
+              Logged in as {user}
+              <button onClick={() => leaveRoom(room)}>Logout</button>
+            </h4>
+          </div>
+          <div className="inputRoom">
+            <input
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") joinRoom(roomInput);
+              }}
+              tabIndex="0"
+              placeholder="Roomname..."
+              className="Roomname"
+              value={roomInput}
+              autoComplete="off"
+              onChange={(e) => setRoomInput(e.target.value)}
+            />
+            <button onClick={() => joinRoom(roomInput)}>Join room</button>
+            <button onClick={() => createRoom(roomInput)}>Create room</button>
+          </div>
+          <button onClick={() => getRooms()}>Show available rooms</button>
+
+          <ul className="currentRooms">
+            {rooms.map((room) => {
+              return <li className="room">{room}</li>;
+            })}
+          </ul>
         </header>
       </div>
     );
@@ -212,10 +260,12 @@ function App() {
             onChange={(e) => setSocketId(e.target.value)}
           />
           <button onClick={handleDM}>Skicka direktmeddelande</button> */}
-        <h3 className="currentRoom">
-          Chatting in room: {room}
-          <button onClick={() => leaveRoom(room)}>Lämna rum</button>
-        </h3>
+        <div className="headerboii">
+          <h4 className="currentRoom">
+            Chatting in room "{room}" as {user}
+            <button onClick={() => leaveRoom(room)}>Leave</button>
+          </h4>
+        </div>
         <ul className="messages">
           {messages.map((message) => {
             // if (!message.user_name) {
@@ -239,14 +289,16 @@ function App() {
 
         <div className="messageForm">
           <input
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleMessage();
+            }}
             className="messageInput"
             autoComplete="off"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
-          <button onClick={() => handleMessage(input)}>
-            Skicka meddelande
-          </button>
+          <button onClick={() => handleMessage()}>Send</button>
         </div>
       </header>
     </div>
