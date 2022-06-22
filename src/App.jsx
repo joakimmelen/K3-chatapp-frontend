@@ -29,18 +29,19 @@ function App() {
       console.log(data);
     });
 
-    socket.on("welcome_to_room", (data) => {
-      console.log(data);
-      setMessages(data);
-    });
+    // socket.on("welcome_to_room", (data) => {
+    //   console.log(data);
+    //   setMessages(data);
+    // });
 
     socket.on("disconnect", (reason) => {
       console.log("Disconnected from server");
     });
 
     socket.on("new_message", (data) => {
-      setMessages([...messages, data]);
       console.log(data);
+      const updatedMess = [...messages, data];
+      setMessages(updatedMess);
     });
 
     return () => socket.off();
@@ -49,13 +50,26 @@ function App() {
 
   function handleMessage(e) {
     e.preventDefault();
-    if (input) socket.emit("message", input, user, room);
-    // setMessages([...messages, input]);
-    setInput("");
+    const newMessage = {
+      message: input,
+      room: room,
+      user: user,
+      userId: socket.id,
+    };
+    if (input) {
+      socket.emit("message", input, user, room);
+      setMessages([...messages, newMessage]);
+      setInput("");
+    }
   }
 
   function handleDM() {
     socket.emit("direct_message", { message: "Hej där!", to: socketId });
+  }
+
+  function createRoom(roomName) {
+    socket.emit("create_room", roomName);
+    setRoom(roomName);
   }
 
   function joinRoom(roomName) {
@@ -85,7 +99,6 @@ function App() {
         <button onClick={handleDM}>Skicka direktmeddelande</button> */}
         <ul className="messages">
           {messages.map((message) => {
-            console.log(message);
             return <li>{message.message}</li>;
           })}
         </ul>
@@ -103,7 +116,8 @@ function App() {
           value={room}
           onChange={(e) => setRoom(e.target.value)}
         />
-        <button onClick={() => joinRoom(room)}>Gå med i rum</button>
+        <button onClick={() => joinRoom(room)}>Join room</button>
+        <button onClick={() => createRoom(room)}>Create room</button>
         <button onClick={() => leaveRoom("piri room")}>Lämna rum</button>
       </header>
     </div>
