@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 import { getTime } from "./timeFunc";
@@ -18,6 +18,18 @@ function App() {
   const [room, setRoom] = useState("");
   const [roomInput, setRoomInput] = useState("");
   const [date, setDate] = useState();
+
+  const messageRef = useRef();
+
+  useEffect(() => {
+    if (messageRef.current) {
+      messageRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+        inline: "nearest",
+      });
+    }
+  }, [messages]);
 
   useEffect(() => {
     socket = io(server);
@@ -61,8 +73,9 @@ function App() {
     });
 
     socket.on("welcome_to_room", (data) => {
-      setMessages(data);
-      setRoom(data[0].room_id);
+      // setMessages((prevState) => [...prevState, data]);
+      setMessages(data[0]);
+      setRoom(data[1]);
     });
 
     socket.on("disconnect", (reason) => {
@@ -122,11 +135,13 @@ function App() {
   }
 
   function joinRoom(roomName) {
-    if (roomInput) socket.emit("join_room", roomName);
+    if (roomName) socket.emit("join_room", roomName);
+    console.log(roomName);
   }
 
   function leaveRoom(roomName) {
     socket.emit("leave_room", roomName);
+    setRoom("");
   }
 
   if (!user && !init) {
@@ -213,8 +228,8 @@ function App() {
             //   );
             // } else {
             return (
-              <li className="message">
-                <h4>{message.user_name} says:</h4>
+              <li ref={messageRef} className="message">
+                <h4>{message.user} says:</h4>
                 <h2>{message.message}</h2>
                 <h5>{message.date}</h5>
               </li>
