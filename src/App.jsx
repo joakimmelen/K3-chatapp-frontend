@@ -1,18 +1,23 @@
 import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
+import { getTime } from "./timeFunc";
 
 const server = "http://localhost:666";
 // const server = "https://trusting-ten-pint.glitch.me/";
 let socket;
 
 function App() {
+  const [init, setInit] = useState("");
   const [socketId, setSocketId] = useState("");
   const [user, setUser] = useState("");
+  const [username, setUsername] = useState("");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState("");
   const [room, setRoom] = useState("");
+  const [roomInput, setRoomInput] = useState("");
+  const [date, setDate] = useState();
 
   useEffect(() => {
     socket = io(server);
@@ -29,10 +34,36 @@ function App() {
       console.log(data);
     });
 
-    // socket.on("welcome_to_room", (data) => {
-    //   console.log(data);
-    //   setMessages(data);
-    // });
+    socket.on("user_created", (data) => {
+      setUser(data);
+      console.log(`Logged in as ${data}`);
+    });
+
+    socket.on("user_error", (data) => {
+      console.log(data);
+    });
+
+    socket.on("user_loggedin", (data) => {
+      setUser(data);
+      console.log(`Logged in as ${data}`);
+    });
+
+    socket.on("error_loggedin", (data) => {
+      console.log(data);
+    });
+
+    socket.on("room_created", (data) => {
+      setRoom(data);
+    });
+
+    socket.on("room_error", (data) => {
+      console.log(data);
+    });
+
+    socket.on("welcome_to_room", (data) => {
+      setMessages(data);
+      setRoom(data[0].room_id);
+    });
 
     socket.on("disconnect", (reason) => {
       console.log("Disconnected from server");
@@ -40,24 +71,27 @@ function App() {
 
     socket.on("new_message", (data) => {
       console.log(data);
-      const updatedMess = [...messages, data];
-      setMessages(updatedMess);
+      setMessages((prevState) => [...prevState, data]);
     });
 
     return () => socket.off();
     // setMessages(fromDaBase)
   }, []);
 
-  function handleMessage(e) {
-    e.preventDefault();
+  useEffect(() => {
+    setDate(getTime());
+  }, [messages]);
+
+  function handleMessage() {
     const newMessage = {
+      date: date,
       message: input,
       room: room,
       user: user,
       userId: socket.id,
     };
     if (input) {
-      socket.emit("message", input, user, room);
+      socket.emit("message", date, input, user, room);
       setMessages([...messages, newMessage]);
       setInput("");
     }
@@ -67,58 +101,138 @@ function App() {
     socket.emit("direct_message", { message: "Hej där!", to: socketId });
   }
 
+  function login() {
+    setInit("login");
+  }
+
+  function createUser() {
+    setInit("create");
+  }
+
+  function addUser() {
+    if (username) socket.emit("create_user", username);
+  }
+
+  function loginUser() {
+    if (username) socket.emit("login_user", username);
+  }
+
   function createRoom(roomName) {
-    socket.emit("create_room", roomName);
-    setRoom(roomName);
+    if (roomInput) socket.emit("create_room", roomName);
   }
 
   function joinRoom(roomName) {
-    setRoom(roomName);
-    socket.emit("join_room", roomName);
+    if (roomInput) socket.emit("join_room", roomName);
   }
 
   function leaveRoom(roomName) {
     socket.emit("leave_room", roomName);
   }
 
+  if (!user && !init) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <button onClick={() => login()}>Login</button>
+          <button onClick={() => createUser()}>Create user</button>
+        </header>
+      </div>
+    );
+  }
+
+  if (!user && init == "login") {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <input
+            placeholder="Username..."
+            className="username"
+            value={username}
+            autoComplete="off"
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <button onClick={() => loginUser()}>Login</button>
+        </header>
+      </div>
+    );
+  }
+  if (!user && init == "create") {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <input
+            placeholder="Username..."
+            className="username"
+            value={username}
+            autoComplete="off"
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <button onClick={() => addUser()}>Create</button>
+        </header>
+      </div>
+    );
+  }
+  if (user && !room) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <input
+            placeholder="Roomname..."
+            value={roomInput}
+            onChange={(e) => setRoomInput(e.target.value)}
+          />
+          <button onClick={() => joinRoom(roomInput)}>Join room</button>
+          <button onClick={() => createRoom(roomInput)}>Create room</button>
+        </header>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <header className="App-header">
-        <input
-          placeholder="Username..."
-          className="username"
-          value={user}
-          autoComplete="off"
-          onChange={(e) => setUser(e.target.value)}
-        />
         {/* <input
-          className="socketId"
-          value={socketId}
-          onChange={(e) => setSocketId(e.target.value)}
-        />
-        <button onClick={handleDM}>Skicka direktmeddelande</button> */}
+            className="socketId"
+            value={socketId}
+            onChange={(e) => setSocketId(e.target.value)}
+          />
+          <button onClick={handleDM}>Skicka direktmeddelande</button> */}
+        <h3 className="currentRoom">
+          Chatting in room: {room}
+          <button onClick={() => leaveRoom(room)}>Lämna rum</button>
+        </h3>
         <ul className="messages">
           {messages.map((message) => {
-            return <li>{message.message}</li>;
+            // if (!message.user_name) {
+            //   return (
+            //     <li className="message">
+            //       <h4>{message.user} You say:</h4>
+            //       <h2>{message.message}</h2>
+            //       <h5>{message.date}</h5>
+            //     </li>
+            //   );
+            // } else {
+            return (
+              <li className="message">
+                <h4>{message.user_name} says:</h4>
+                <h2>{message.message}</h2>
+                <h5>{message.date}</h5>
+              </li>
+            );
           })}
         </ul>
-        <form action="" className="messageForm">
+
+        <div className="messageForm">
           <input
             className="messageInput"
             autoComplete="off"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
-          <button onClick={handleMessage}>Skicka meddelande</button>
-        </form>
-        <input
-          placeholder="Roomname..."
-          value={room}
-          onChange={(e) => setRoom(e.target.value)}
-        />
-        <button onClick={() => joinRoom(room)}>Join room</button>
-        <button onClick={() => createRoom(room)}>Create room</button>
-        <button onClick={() => leaveRoom("piri room")}>Lämna rum</button>
+          <button onClick={() => handleMessage(input)}>
+            Skicka meddelande
+          </button>
+        </div>
       </header>
     </div>
   );
