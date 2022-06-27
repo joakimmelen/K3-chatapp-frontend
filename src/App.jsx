@@ -101,7 +101,7 @@ function App() {
 
   useEffect(() => {
     socket.on("all_rooms", (data) => {
-      console.log(data);
+      setRooms(data);
     });
   }, [rooms]);
 
@@ -142,6 +142,7 @@ function App() {
 
   function createRoom(roomName) {
     if (roomInput) socket.emit("create_room", roomName);
+    setRoomInput("");
   }
 
   function joinRoom(roomName) {
@@ -161,6 +162,10 @@ function App() {
   function removeRoom(roomName) {
     socket.emit("remove_room", roomName);
   }
+
+  useEffect(() => {
+    getRooms();
+  }, [removeRoom]);
 
   if (!user && !init) {
     return (
@@ -243,7 +248,12 @@ function App() {
 
           <ul className="currentRooms">
             {rooms.map((room) => {
-              return <li className="room">{room}</li>;
+              return (
+                <li className="room">
+                  {room.name}{" "}
+                  <button onClick={() => removeRoom(room.name)}>X</button>
+                </li>
+              );
             })}
           </ul>
         </header>
